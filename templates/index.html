@@ -5,13 +5,20 @@
     <title>Noodle Pack Display</title>
     <script src="/static/js/socket.io.min.js"></script>
     <style>
-        body { margin: 0; background-color: black; }
-        #content { width: 100vw; height: 100vh; object-fit: contain; }
+        body { margin: 0; background-color: black; overflow: hidden; }
+        img, video {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            object-fit: fill;
+        }
     </style>
 </head>
 <body>
-    <img id="default" src="/static/assets/default.png" id="content" />
-    <video id="video" autoplay muted loop id="content" style="display: none;"></video>
+    <img id="default" src="/static/assets/default.jpg" style="display: block;" />
+    <video id="video" autoplay muted loop style="display: none;"></video>
 
     <script>
         const socket = io();
