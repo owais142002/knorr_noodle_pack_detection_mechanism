@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Noodle Pack Display</title>
+    <script src="/static/js/socket.io.min.js"></script>
+    <style>
+        body { margin: 0; background-color: black; }
+        #content { width: 100vw; height: 100vh; object-fit: contain; }
+    </style>
+</head>
+<body>
+    <img id="default" src="/static/assets/default.png" id="content" />
+    <video id="video" autoplay muted loop id="content" style="display: none;"></video>
+
+    <script>
+        const socket = io();
+        const img = document.getElementById("default");
+        const video = document.getElementById("video");
+
+        socket.on("video_update", (data) => {
+            if (data.type === "video") {
+                img.style.display = "none";
+                video.src = `/static/assets/${data.name}.mp4`;
+                video.style.display = "block";
+                video.play();
+            } else {
+                video.pause();
+                video.style.display = "none";
+                img.style.display = "block";
+            }
+        });
+    </script>
+</body>
+</html>
