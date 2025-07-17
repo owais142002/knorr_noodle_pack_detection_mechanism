@@ -9,7 +9,7 @@ from collections import Counter
 
 app = Flask(__name__)
 socketio = SocketIO(app)
-
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 3600
 model = YOLO('runs/detect/train/weights/best.pt')
 
 detector = Detector(

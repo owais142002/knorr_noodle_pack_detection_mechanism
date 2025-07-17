@@ -5,8 +5,9 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import WebDriverException
+import getpass
 
-URL = "http://localhost:5000"
+URL = "http://127.0.0.1:5000/"
 
 def wait_for_server():
     while True:
@@ -22,10 +23,11 @@ def wait_for_server():
 
 def launch_browser():
     options = Options()
+
     options.add_argument("--start-maximized")
     options.add_argument("--start-fullscreen")
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
-    options.add_experimental_option('useAutomationExtension', False)
+    options.add_experimental_option('useAutomationExtension', False)        
 
     try:
         driver = webdriver.Chrome(options=options)
@@ -34,7 +36,6 @@ def launch_browser():
         return None
 
     driver.get(URL)
-
     time.sleep(1)
 
     actions = ActionChains(driver)
@@ -42,7 +43,6 @@ def launch_browser():
 
     print("Launched browser in fullscreen mode.")
     return driver
-
 if __name__ == "__main__":
     wait_for_server()
     driver = launch_browser()
