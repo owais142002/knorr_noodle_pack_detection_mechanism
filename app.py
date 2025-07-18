@@ -7,6 +7,11 @@ import threading
 import time
 from collections import Counter
 
+import serial
+# open and give Arduino a moment to boot
+ser = serial.Serial('COM4', 9600, timeout=1)
+time.sleep(2)
+
 app = Flask(__name__)
 socketio = SocketIO(app)
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 3600
@@ -22,12 +27,13 @@ detector = Detector(
     debug=False
 )
 
-cap = cv2.VideoCapture(1)
+cap = cv2.VideoCapture(0)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
 PACK_LABELS = {"black_noodle_pack": "black", "green_noodle_pack": "green",
                "orange_noodle_pack": "orange", "red_noodle_pack": "red"}
+PACK_CHARS = { 'black':'a', 'green':'b', 'orange':'c', 'red':'d' }
 
 DEFAULT_STATE = {"playing": False, "current": "default"}
 STATE = DEFAULT_STATE.copy()
@@ -78,12 +84,16 @@ def detect_loop():
                         if STATE["current"] != chosen_pack:
                             STATE["playing"] = True
                             STATE["current"] = chosen_pack
+                            # blink that LED
+                            ser.write(PACK_CHARS[chosen_pack].encode())
                             socketio.emit('video_update', {'type': 'video', 'name': chosen_pack})
         else:
             tag_stable_count = 0
             if tag_active and (time.time() - last_seen_tag_time > 1):
                 tag_active = False
                 STATE.update(DEFAULT_STATE)
+                # stop blinking
+                ser.write(b's')
                 socketio.emit('video_update', {'type': 'image', 'name': 'default'})
 
         time.sleep(0.1)
