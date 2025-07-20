@@ -111,6 +111,8 @@ def detect_loop():
                 tag_stable_count = 0
 
                 missing_votes = []
+                consecutive_count = 0
+                last_missing = None
 
                 for _ in range(5):
                     time.sleep(0.2)
@@ -122,10 +124,22 @@ def detect_loop():
                     classes = results[0].boxes.cls.cpu().numpy().astype(int)
                     detected = set(results[0].names[i] for i in classes)
 
+                    current_missing = None
                     for label in PACK_LABELS:
-                        # Check only SESSION_LABELS
                         if PACK_LABELS[label] in SESSION_LABELS and label not in detected:
-                            missing_votes.append(PACK_LABELS[label])
+                            current_missing = PACK_LABELS[label]
+                            break
+
+                    if current_missing:
+                        missing_votes.append(current_missing)
+                        if current_missing == last_missing:
+                            consecutive_count += 1
+                        else:
+                            consecutive_count = 1
+                            last_missing = current_missing
+
+                        # Trigger early if same missing label is seen twice in a row
+                        if consecutive_count >= 2:
                             break
 
                 if missing_votes:
@@ -137,7 +151,6 @@ def detect_loop():
                         if STATE["current"] != chosen_pack:
                             STATE["playing"] = True
                             STATE["current"] = chosen_pack
-                            # blink that LED
                             ser.write(PACK_CHARS[chosen_pack].encode())
                             socketio.emit('video_update', {'type': 'video', 'name': chosen_pack})
         else:
@@ -145,7 +158,6 @@ def detect_loop():
             if tag_active and (time.time() - last_seen_tag_time > 1):
                 tag_active = False
                 STATE.update(DEFAULT_STATE)
-                # stop blinking
                 ser.write(b's')
                 socketio.emit('video_update', {'type': 'image', 'name': 'default'})
 
