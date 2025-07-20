@@ -12,9 +12,11 @@ import serial
 ser = serial.Serial('COM4', 9600, timeout=1)
 time.sleep(2)
 
+EXTERNAL_CAMERA = True 
 app = Flask(__name__)
 socketio = SocketIO(app)
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 3600
+
 model = YOLO('runs/detect/train/weights/best.pt')
 
 detector = Detector(
@@ -27,18 +29,67 @@ detector = Detector(
     debug=False
 )
 
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(1 if EXTERNAL_CAMERA else 0)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
-PACK_LABELS = {"black_noodle_pack": "black", "green_noodle_pack": "green",
-               "orange_noodle_pack": "orange", "red_noodle_pack": "red"}
-PACK_CHARS = { 'black':'a', 'green':'b', 'orange':'c', 'red':'d' }
+PACK_LABELS = {
+    "black_noodle_pack": "black",
+    "green_noodle_pack": "green",
+    "orange_noodle_pack": "orange",
+    "red_noodle_pack": "red"
+}
+PACK_CHARS = {'black': 'a', 'green': 'b', 'orange': 'c', 'red': 'd'}
 
 DEFAULT_STATE = {"playing": False, "current": "default"}
 STATE = DEFAULT_STATE.copy()
 
+SESSION_LABELS = set()  # Will be filled after calibration
+
+
+def calibrate_objects():
+    print("[Calibration] Starting 10-second object setup phase...")
+    detected_labels = []
+
+    for i in range(10):
+        ret, frame = cap.read()
+        if not ret:
+            continue
+
+        results = model.predict(source=frame, imgsz=640, conf=0.7, verbose=False)
+        classes = results[0].boxes.cls.cpu().numpy().astype(int)
+
+        detected = set(results[0].names[i] for i in classes)
+        for label in PACK_LABELS:
+            if label in detected:
+                detected_labels.append(PACK_LABELS[label])
+
+        # Show detection overlay in OpenCV window during calibration
+        annotated = results[0].plot()
+        cv2.imshow("Calibration View", annotated)
+        cv2.waitKey(1)
+        time.sleep(1)
+
+    cv2.destroyAllWindows()
+    counted = Counter(detected_labels)
+    most_common = set(counted.keys())
+    print(f"[Calibration] Detected objects: {most_common}")
+    return most_common
+
+
 def detect_loop():
+    global SESSION_LABELS
+
+    SESSION_LABELS = calibrate_objects()
+
+    # Notify frontend of detected objects
+    socketio.emit('video_update', {
+        'type': 'info',
+        'name': ', '.join(SESSION_LABELS)
+    })
+
+    time.sleep(5)
+
     tag_stable_count = 0
     last_seen_tag_time = time.time()
     tag_active = False
@@ -68,17 +119,19 @@ def detect_loop():
                         continue
 
                     results = model.predict(source=stable_frame, imgsz=640, conf=0.5, verbose=False)
-                    detected = set(results[0].names[i] for i in results[0].boxes.cls.cpu().numpy().astype(int))
+                    classes = results[0].boxes.cls.cpu().numpy().astype(int)
+                    detected = set(results[0].names[i] for i in classes)
 
                     for label in PACK_LABELS:
-                        if label not in detected:
+                        # Check only SESSION_LABELS
+                        if PACK_LABELS[label] in SESSION_LABELS and label not in detected:
                             missing_votes.append(PACK_LABELS[label])
                             break
 
                 if missing_votes:
-                    print(missing_votes)
+                    print("[Detection] Missing votes:", missing_votes)
                     most_common = Counter(missing_votes).most_common(1)
-                    print(f"The missing pack is: {most_common}")
+                    print(f"[Detection] The missing pack is: {most_common}")
                     if most_common:
                         chosen_pack = most_common[0][0]
                         if STATE["current"] != chosen_pack:
@@ -98,9 +151,11 @@ def detect_loop():
 
         time.sleep(0.1)
 
+
 @app.route('/')
 def index():
     return render_template('index.html')
+
 
 if __name__ == '__main__':
     thread = threading.Thread(target=detect_loop)

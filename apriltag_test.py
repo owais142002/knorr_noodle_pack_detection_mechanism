@@ -1,7 +1,9 @@
 import cv2
 from pupil_apriltags import Detector
 
-cap = cv2.VideoCapture(0)
+EXTERNAL_CAMERA = True
+
+cap = cv2.VideoCapture(1 if EXTERNAL_CAMERA else 0)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 

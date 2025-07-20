@@ -6,6 +6,7 @@
     <script src="/static/js/socket.io.min.js"></script>
     <style>
         body { margin: 0; background-color: black; overflow: hidden; }
+
         img, video {
             position: fixed;
             top: 0;
@@ -14,27 +15,56 @@
             height: 100vh;
             object-fit: fill;
         }
+
+        #status {
+            position: fixed;
+            bottom: 5%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+            font-size: 2em;
+            padding: 1em 2em;
+            border-radius: 12px;
+            display: none;
+            z-index: 10;
+        }
     </style>
 </head>
 <body>
     <img id="default" src="/static/assets/default.jpg" style="display: block;" />
     <video id="video" autoplay loop style="display: none;"></video>
+    <div id="status"></div>
 
     <script>
         const socket = io();
         const img = document.getElementById("default");
         const video = document.getElementById("video");
+        const statusDiv = document.getElementById("status");
 
         socket.on("video_update", (data) => {
             if (data.type === "video") {
+                statusDiv.style.display = "none";
                 img.style.display = "none";
                 video.src = `/static/assets/${data.name}.mp4`;
                 video.style.display = "block";
                 video.play();
+            } else if (data.type === "info") {
+                video.pause();
+                video.style.display = "none";
+                img.style.display = "block";
+                statusDiv.innerText = `Detected packs: ${data.name}`;
+                statusDiv.style.display = "block";
+
+                // Hide the status message after 5 seconds
+                setTimeout(() => {
+                    statusDiv.style.display = "none";
+                }, 5000);
             } else {
                 video.pause();
                 video.style.display = "none";
                 img.style.display = "block";
+                statusDiv.style.display = "none";
             }
         });
     </script>

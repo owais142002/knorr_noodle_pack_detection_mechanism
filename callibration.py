@@ -3,7 +3,9 @@ from ultralytics import YOLO
 
 model = YOLO('runs/detect/train/weights/best.pt')
 
-cap = cv2.VideoCapture(0)
+EXTERNAL_CAMERA = True
+
+cap = cv2.VideoCapture(1 if EXTERNAL_CAMERA else 0)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
 # # Optional: Set camera resolution
